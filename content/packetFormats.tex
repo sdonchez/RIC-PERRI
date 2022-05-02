@@ -1,0 +1,135 @@
+%!TeX root = ../ECE8408_Project_Ad_Hoc_Routing.tex
+\section{Packet Definitions}\label{sec:packetDefinitions}
+The RIC-PERRI algorithm utilizes the common Internet Group Message Protocol (IGMP) packet format utilized by the traditional Distance Vector Multicast Routing Protocol (DVMRP, or just DV) algorithm upon which it is based. Many of the fields below are adopted directly from the RFC which proposes the DVMRP protocol, RFC 1075 \cite{waitzman_distance_1988}. The subsections below begin by describing the individual fields that can be used to construct the various packets, followed by the various packets themselves.
+\subsection{Available Fields}\label{subsec:PDAvailableFields}
+The following fields are used to construct the packets needed by the RIC-PERRI protocol. Where noted, these fields are directly adopted from \cite{waitzman_distance_1988}. In the literature, these fields are sometimes referred to as \emph{commands}. This work uses these terms interchangeably.
+
+\subsubsection{IGMP Header}\label{subsubsec:PDAFIGMPHeader}
+The IGMP header is common to all packets in the algorithm. Each individual packet type is indicated by a subtype in the appropriate field, as defined in Figure \ref{fig:IGMPHeader}. This field is directly adopted from \cite{waitzman_distance_1988}.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.4em]{32}
+        \bitheader{0-31}\\
+        \bitbox{4}{Version=1} & \bitbox{4}{Type=8} & \bitbox{8}{Subtype} & \bitbox{16}{Checksum}
+    \end{bytefield}
+    \caption{IGMP Header Specification}
+    \label{fig:IGMPHeader}
+\end{figure}
+The IGMP Header, adopted from \cite{waitzman_distance_1988}, identifies the packet as an Internet Group Management Protocol (IGMP) packet. The version field is set to 1, indicating that the packet is an IGMP version 1 datagram. The type field is set to 8, which is not otherwise utilized according to IANA \cite{fenner_iana_2002}. This will serve as the identifier for RIC-PERRI messages. The subtype field is used to indicate the type of packet being sent, as indicated in Table \ref{table:IGMPHeaderSubtypes}, below:
+\begin{table}[H]
+    \centering\begin{tabular}{|c|c|}
+        \hline
+        Subtype ID & Subtype \\
+        \hline
+        \hline
+        1 & Routing Update \\
+        \hline
+        2 & Routing Query \\
+        \hline
+        3 & Dropped Node \\
+        \hline
+        4 - 255 & Reserved \\
+        \hline
+    \end{tabular}
+    \caption{IGMP Header Subtypes}
+    \label{table:IGMPHeaderSubtypes}
+\end{table}
+
+\subsubsection{Metric Value}\label{subsubsec:PDAFMetricValue}
+The metric value, used messages providing route details, provides the ``cost'' value associated with a given address. The metric is has a maximum value of 255, and is further constrained by the Infinity Value, as outlined in Field \ref{subsubsec:PDAFInfinityValue}, below. This field is directly adopted from \cite{waitzman_distance_1988}.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.4em]{16}
+        \bitheader{0-15}\\
+        \bitbox{8}{Command=4} & \bitbox{8}{Value}
+    \end{bytefield}
+    \caption{Metric Command Specification}
+    \label{fig:MetricCommand}
+\end{figure}
+
+\subsubsection{Infinity Value}\label{subsubsec:PDAFInfinityValue}
+The infinity command is used to indicate the minimum value of the metric which is considered to be an infinite cost. Any value greater than or equal to this value is considered to be infinite, meaning that a route with a cost at or above this value will not be considered a valid option. This field is directly adopted from \cite{waitzman_distance_1988}.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.4em]{16}
+        \bitheader{0-15}\\
+        \bitbox{8}{Command=6} & \bitbox{8}{Value}
+    \end{bytefield}
+    \caption{Infinity Command Specification}
+    \label{fig:InfinityCommand}
+\end{figure}
+
+\subsubsection{Destination Address Command}\label{subsubsec:PDAFDestinationAddressCommand}
+The destination address command is used to indicate available routes. It is used in the routing update process, and contains a given number of destinations, as specified by the count value. Each destination is represented by a 32-bit IP Address, followed by another 32-bit IP Address indicating the next hop to be followed. Destinations are always presented as a pair of 32 bit fields, a destination and a next hop. Subsequent pairs follow the same format. Each message has an incremental sequence number to prevent stale routes. This sequence number is specific to the sender, not common across the network. This field is adopted from \cite{waitzman_distance_1988}, with some modification. Specifically, the concept of a sequence number to ensure that stale routes are not persisted is adopted from the Destination-Sequenced Distance Vector protocol, proposed in \cite{perkins_highly_1994}.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{8}{Command=7} & \bitbox{8}{Count=$N$} & \bitbox{16}{Sequence Number} \\
+        \begin{rightwordgroup}{Route 1}
+            \bitbox{32}{Destination} \\
+            \bitbox{32}{Next Hop}
+        \end{rightwordgroup} \\
+        \begin{rightwordgroup}{Route 2}
+            \bitbox{32}{Destination} \\
+            \bitbox{32}{Next Hop}
+        \end{rightwordgroup} \\
+        \wordbox[]{1}{$\vdots$} \\[1ex]
+        \begin{rightwordgroup}{Route $N$}
+            \bitbox{32}{Destination} \\
+            \bitbox{32}{Next Hop}
+        \end{rightwordgroup}
+    \end{bytefield}
+    \caption{Destination Address Command Specification}
+    \label{fig:DestinationAddressCommand}
+\end{figure}
+
+\subsubsection{Request Destination Address (RDA) Command}\label{subsubsec:PDAFRequestedDestinationAddressCommand}
+The requested destination address command is used to request available routes. It is used in the routing update process, and contains a given number of requested destinations, as specified by the count value. Alternatively, the count value can be set to zero, requesting all available routes. Each destination is represented by a 32-bit IP Address. This field is adopted from \cite{waitzman_distance_1988}, with some modifications.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{8}{Command=8} & \bitbox{8}{Count=$N$} & \bitbox{16}{Reserved} \\
+        \begin{rightwordgroup}{Destination 1}
+            \bitbox{32}{Requested Destination}
+        \end{rightwordgroup} \\
+        \begin{rightwordgroup}{Destination 2}
+            \bitbox{32}{Requested Destination}
+        \end{rightwordgroup} \\
+        \wordbox[]{1}{$\vdots$} \\[1ex]
+        \begin{rightwordgroup}{Destination $N$}
+            \bitbox{32}{Requested Destination}
+        \end{rightwordgroup}
+    \end{bytefield}
+    \caption{Requested Destination Address Command Specification}
+    \label{fig:RequestedDestinationAddressCommand}
+\end{figure}
+
+\subsubsection{Failure Notification}\label{subsubsec:PDAFFailureNotification}
+The failure notification is used to indicate some form of failure in the routing process. This can include a failure to transmit a packet over a known route, or the inability to find a route to a given node.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{8}{Command=F} & \bitbox{8}{Status} & \bitbox{16}{Reserved} \\
+        \bitbox{32}{Address}\\
+    \end{bytefield}
+    \caption{Failure Notification Specification}
+    \label{fig:FailureNotification}
+\end{figure}
+\begin{table}[H]
+    \centering\begin{tabular}{|c|c|}
+        \hline
+        Status ID & Status \\
+        \hline
+        \hline
+        1 & Node Unreachable \\
+        \hline
+        2 - 255 & Reserved \\
+        \hline
+    \end{tabular}
+    \caption{Failure Notification Statuses}
+    \label{table:FailureNotificationStatuses}
+\end{table}
+\subsection{Packet Formats}\label{subsec:PDpacketFormats}

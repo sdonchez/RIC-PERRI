@@ -1,0 +1,40 @@
+\documentclass[11pt, journal, onecolumn, letterpaper,]{LaTeX_Assets/IEEETransactions_LaTeX/IEEEtran/IEEEtran}
+\usepackage{graphicx}
+\graphicspath{{./jpeg/}{LaTeX_Assets/jpeg/}}
+\usepackage{float}
+\usepackage{bytefield}
+\usepackage{tikz}
+\usetikzlibrary{automata, positioning, arrows}
+\usepackage{caption}
+\captionsetup[table]{skip=10pt}
+
+\begin{document}
+
+    \title{Routing Implementation Considering Proactive Effective Redundant Routes, Infrastructureless (RIC-PERRI)}
+    \author{Stephen~Donchez,~\IEEEmembership{Member,~IEEE}%
+    \thanks{S. Donchez is with Villanova University, Villanova, PA 19085 USA 
+    \mbox{(e-mail:sdonchez@villanova.edu)}}%
+    \thanks{Manuscript received May 4, 2022}}%
+
+    \maketitle
+
+    % \input{content/abstract.tex}
+
+    \input{content/introduction.tex}
+
+    \input{content/stateMachineDesign.tex}
+    \input{content/packetFormats.tex}
+    \input{content/proofs.tex}
+
+    \input{content/conclusion.tex}
+
+    \bibliographystyle{LaTeX_Assets/IEEETransactions_LaTeX/Transactions-Bibliography/IEEEtran}
+ %   \bibliographystyle{IEEEtran} %TODO: Resolve mapping issues
+    \bibliography{LaTeX_Assets/RoutingProtocolSources}
+
+    %shrink space between bibliography and biography
+    \vskip 0pt plus -1fil
+
+    \input{LaTeX_Assets/Biography.tex}
+
+\end{document}
