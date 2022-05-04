@@ -1,4 +1,111 @@
 %!TeX root = ../ECE8408_Project_Ad_Hoc_Routing.tex
 \section{Algorithm State Machine}\label{sec:stateMachine}
 \subsection{Final State Machine}\label{subsec:SMfinalStateMachine}
+The various steps in the RIC-PERRI Routing algorithm can be captured in a Finite State Machine (FSM), as shown in Figure \ref{fig:finalStateMachine}. For purposes of brevity, the FSM uses numerical IDs for each state. Descriptions of each state are presented in Table \ref{table:FSMDescriptions}. State transitions without labels represent unconditional or default transitions.
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+        \node[state,initial](q1) {Start};
+        \node[state, below of=q1] (q3) {3};
+        \node[state, left of=q3] (q2) {2};
+        \node[state, right of=q3] (q4) {4};
+        \node[state, below of=q2] (q5) {5};
+        \node[state, below of=q3] (q6) {6};
+        \node[state, below of=q4] (q7) {7};
+        \node[state, right of=q7] (q8) {8};
+        \node[state, below of=q5, accepting] (q9) {9};
+        \node[state, right of=q9] (q10) {10};
+        \node[state, right of=q10] (q11) {11};
+        \node[state, right of=q11] (q12) {12};
+        \node[state, below of=q10] (q13) {13};
+        \node[state, right of=q13] (q14) {14};
+        \node[state, right of=q14] (q15) {15};
+        % \node[state, right of=q9] (q14) {14};
+        % \node[state, left of=q9] (q15) {15};
+
+        \draw (q1) edge [above] node {} (q3)
+            (q2) edge [bend left, above] node {Short Delay} (q3)
+            (q3) edge [bend left, below] node {No RReps} (q2)
+            (q3) edge [above] node {RReps RX'd} (q4)
+            (q4) edge [above] node {} (q7)
+            (q5) edge [bend right] node {} (q6)
+            (q6) edge [sloped, anchor=center, above] node {Timer Expires} (q3)
+            (q6) edge [sloped, anchor=center, above] node {RReps RX'd} (q4)
+            (q6) edge [above, bend right] node {RReq RX'd} (q5)
+            (q6) edge [sloped, anchor=center, above] node {Node Going Down} (q9)
+            (q6) edge [sloped, anchor=center, below right, bend right] node {Node Drop RX'd} (q10)
+            (q6) edge [sloped, anchor=center, above] node {Primary Route Fails} (q11)
+            (q6) edge [sloped, anchor=center, above right] node {No Route to Node} (q12)
+            (q7) edge [above] node {Routing Table Same} (q6)
+            (q8) edge [above, bend left] node {} (q6)
+            (q10) edge [bend right] node {} (q6)
+            (q11) edge [sloped, anchor=center, above] node {TX Success} (q14)
+            (q11) edge [sloped, anchor=center, above] node {TX Fails} (q15)
+            (q12) edge [sloped, anchor=center, above] node {2nd Attempt} (q8)
+            (q12) edge [sloped, anchor=center, above] node {1st Attempt} (q15)
+            (q13) edge [bend right] node {} (q6)
+            (q14) edge [] node {} (q15)
+            (q15) edge [below, bend left] node {} (q13)
+            ;
+            \draw [->] (q7) ..  controls  ($(q7)+(4cm,4cm)$) and
+  ($(q3)+(4cm,4cm)$) ..  (q3) node[midway,above right] {Routing Table Differs};
+    \end{tikzpicture}
+    \caption{RIC-PERRI Algorithm State Machine}
+    \label{fig:finalStateMachine}
+\end{figure}
+\begin{table}[h]
+    \centering\begin{tabular}{|c|c|}
+        \hline
+        State ID & Description \\
+        \hline
+        \hline
+        1 & Initial State \\
+        \hline
+        2 & Notify user of isolation, enter brief delay \\
+        \hline
+        3 & Broadcast RReq for all routes \\
+        \hline
+        4 & Receive Full Routing Data \\
+        \hline
+        5 & Transmit any known requested routes \\
+        \hline
+        6 & Set timer and wait for expiration \\
+        \hline
+        7 & Generate Full Routing Table \\
+        \hline
+        8 & Transmit Node Drop Alert, Remove Routes to Node\\
+        \hline
+        9 & Alert all other nodes, advertise all known routes at infinite cost \\
+        \hline
+        10 & Remove Routes to Node, alert user (layer 7) \\
+        \hline
+        11 & Transmit message over secondary route \\
+        \hline
+        12 & Alert user of unreachable node \\
+        \hline
+        13 & Perform partial routing table update \\
+        \hline
+        14 & Promote secondary route to primary \\
+        \hline
+        15 & Send specific RReq \\
+        \hline
+
+    \end{tabular}
+    \caption{Failure Notification Statuses}
+    \label{table:FSMDescriptions}
+\end{table}
+
+As can be seen in the state machine diagram, the ``normal'' operation of the algorithm is fairly straight forward, and in keeping with traditional DV-based implementations. Upon initialization (the ``Start'' State), the algorithm transmits a Route Request (RReq) for all nodes in the network (State 3). It then collects Route Responses (RRes) from its neighbors (State 4), and constructs a routing table (State 7) containing dual routes for each node. It repeats this process until the table is constant for two iterations, at which point it assumes it has found all routes. It then enters a delay state (State 6), wherein it sets a timer for a parameter-defined time, and waits for said timer to expire before repeating the process.
+
+The other ``normal'' operations a node performs are related to responding to routing requests and responses. The former, captured in State 5 of the FSM, requires the node to transmit select routes in response to a query, or all routes if select routes are not specified.  After completing this requirement, the algorithm transitions back to its normal state of waiting for the timer to expire. Meanwhile, the latter is captured in the State 6 $\rightarrow$ State 4 transition, where the node receives an un-requested response (due to another node updating its routes). The node updates its routes based on this information, goes through the routing update process to ensure that other changes don't result, and then resumes normal operation.
+
+The simplest failure case in this algorithm (but also the most severe) is captured in State 2. This state represented the case where the node, upon performing a request for all routes, receives no responses. This indicates that the node has become isolated from the network. While this is obviously a dire state (especially given the intended use case), there is very little that can be done beyond alerting the user. After doing so, the node waits a brief period of time before re-transmitting the request. 
+
+Similarly, State 9 in the diagram represents the case where a node is intentionally dropping from the network, either due to being powered down (at the completion of operations) or due to depleted battery, etc. In this case, the node proceeds to alert all other nodes that it is going down, which triggers them to update routes with that node listed as a next hop to a cost of $\infty$ and send out unsolicited route responses. Depending on the nature of the disconnection, other nodes can then provide a user alert if necessary. 
+
+The lower right portion of the FSM diagram in Figure \ref{fig:finalStateMachine} represents the more complex failure states. The link from State 6 to State 12 represents the case where a route is requested to a node which does not have a routing table entry, either due to it having been removed or due to it being a node that has never previously been recognized by the current node. In this case, the node will attempt to perform a specific Route Request for the target node (State 12 $\rightarrow$ 15 $\rightarrow$ 13). If this fails, it will perform a second attempt before giving up and notifying the user (State 8).
+
+Meanwhile, State 11 handles the case where a where a node is unable to transmit along a known route. If this is the case, the node immediately attempts to utilize the secondary route that was pre-computed. If this is successful, it promotes that to the primary route temporarily (State 14). Regardless of success, it transmits a selective RReq for that node in an attempt to restore the redundancy of the connection (State 15), and updates the table based on the responses (State 13).
+
 \subsection{Iterative Improvements}\label{subsec:SMiterativeImprovements}

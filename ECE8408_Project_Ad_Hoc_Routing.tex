@@ -4,7 +4,14 @@
 \usepackage{float}
 \usepackage{bytefield}
 \usepackage{tikz}
-\usetikzlibrary{automata, positioning, arrows}
+\usetikzlibrary{automata, positioning, arrows, calc}
+\tikzset{
+->, % makes the edges directed
+>=stealth', % makes the arrow heads bold
+node distance=4cm, % specifies the minimum distance between two nodes. Change if necessary.
+every state/.style={thick, fill=gray!10}, % sets the properties for each 'state' node
+initial text=$ $, % sets the text that appears on the start arrow
+}
 \usepackage{caption}
 \captionsetup[table]{skip=10pt}
 
