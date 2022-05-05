@@ -22,11 +22,11 @@ The IGMP Header, adopted from \cite{waitzman_distance_1988}, identifies the pack
         Subtype ID & Subtype \\
         \hline
         \hline
-        1 & Routing Update \\
+        1 & Routing Response (RRep) \\
         \hline
-        2 & Routing Query \\
+        2 & Routing Request (RReq) \\
         \hline
-        3 & Dropped Node \\
+        3 & Error Notification \\
         \hline
         4 - 255 & Reserved \\
         \hline
@@ -35,8 +35,8 @@ The IGMP Header, adopted from \cite{waitzman_distance_1988}, identifies the pack
     \label{table:IGMPHeaderSubtypes}
 \end{table}
 
-\subsubsection{Metric Value}\label{subsubsec:PDAFMetricValue}
-The metric value, used messages providing route details, provides the ``cost'' value associated with a given address. The metric is has a maximum value of 255, and is further constrained by the Infinity Value, as outlined in Field \ref{subsubsec:PDAFInfinityValue}, below. This field is directly adopted from \cite{waitzman_distance_1988}.
+\subsubsection{Metric Type}\label{subsubsec:PDAFMetricValue}
+The metric value, used messages providing route details, provides the ``cost'' value associated with a given address. The metric is has a maximum value of 255, and is further constrained by the Infinity Value, as outlined in Field \ref{subsubsec:PDAFInfinityValue}, below. This field is directly adopted from \cite{waitzman_distance_1988}. This field, which does not contain the actual metric value itself (this is instead contained in the DAC command, Field \ref{subsubsec:PDAFDestinationAddressCommand}, below), but instead allows for the selection of one of multiple types of metric to allow for future expansion. The various values (of which currently only hop count is supported) are defined in Table \ref{table:MetricTypes}, below.
 \begin{figure}[H]
     \centering
     \begin{bytefield}[bitwidth=1.4em]{16}
@@ -46,6 +46,21 @@ The metric value, used messages providing route details, provides the ``cost'' v
     \caption{Metric Command Specification}
     \label{fig:MetricCommand}
 \end{figure}
+
+\begin{table}[H]
+    \centering\begin{tabular}{|c|c|}
+        \hline
+        Metric ID & Description \\
+        \hline
+        \hline
+        1 & Hop Count \\
+        \hline
+        2 - 255 & Reserved \\
+        \hline
+    \end{tabular}
+    \caption{Metric Types}
+    \label{table:MetricTypes}
+\end{table}
 
 \subsubsection{Infinity Value}\label{subsubsec:PDAFInfinityValue}
 The infinity command is used to indicate the minimum value of the metric which is considered to be an infinite cost. Any value greater than or equal to this value is considered to be infinite, meaning that a route with a cost at or above this value will not be considered a valid option. This field is directly adopted from \cite{waitzman_distance_1988}.
@@ -59,8 +74,20 @@ The infinity command is used to indicate the minimum value of the metric which i
     \label{fig:InfinityCommand}
 \end{figure}
 
+\subsubsection{Partition Command}\label{subsubsec:PDAPartitioningCommand}
+As several of the above commands have a constraint imposed by a ``count'' field that may be prohibitive, a partitioning command is provided to enable a node to indicate that additional related packets will follow. The field consists of three segments: a message ID, a partition number, and a flag bit (FB). The message ID enables multiple different messages (where a message is all of the packets in a single partitioned set) to be send without the risk of their intermingling, while the partition number allows for sequential ordering. The flag bit is set to indicate the last packet in a sequence.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.4em]{31}
+        \bitheader{0-31}\\
+        \bitbox{1}{FB} & \bitbox{15}{Message ID} & \bitbox{16}{Partition Number}
+    \end{bytefield}
+    \caption{Partition Command Specification}
+    \label{fig:PartitionCommand}
+\end{figure}
+
 \subsubsection{Destination Address Command}\label{subsubsec:PDAFDestinationAddressCommand}
-The destination address command is used to indicate available routes. It is used in the routing update process, and contains a given number of destinations, as specified by the count value. Each destination is represented by a 32-bit IP Address, followed by another 32-bit IP Address indicating the next hop to be followed. Destinations are always presented as a pair of 32 bit fields, a destination and a next hop. Subsequent pairs follow the same format. Each message has an incremental sequence number to prevent stale routes. This sequence number is specific to the sender, not common across the network. This field is adopted from \cite{waitzman_distance_1988}, with some modification. Specifically, the concept of a sequence number to ensure that stale routes are not persisted is adopted from the Destination-Sequenced Distance Vector protocol, proposed in \cite{perkins_highly_1994}.
+The destination address command is used to indicate available routes. It is used in the routing update process, and contains a given number of destinations, as specified by the count value. Each destination is represented by a 32-bit IP Address, followed by another 32-bit IP Address indicating the next hop to be followed. Finally, a 16 bit field is used to indicate the cost associated with the link, with an additional 16 bit reserved field introduced for future expansion as well as word alignment. Destinations are always presented as a triplet of 32 bit fields, a destination a next hop and a metric/reserved field. Subsequent pairs follow the same format. Each message has an incremental sequence number to prevent stale routes. This sequence number is specific to the sender, not common across the network. This field is adopted from \cite{waitzman_distance_1988}, with some modification. Specifically, the concept of a sequence number to ensure that stale routes are not persisted is adopted from the Destination-Sequenced Distance Vector protocol, proposed in \cite{perkins_highly_1994}.
 \begin{figure}[H]
     \centering
     \begin{bytefield}[bitwidth=1.1em]{32}
@@ -68,16 +95,22 @@ The destination address command is used to indicate available routes. It is used
         \bitbox{8}{Command=7} & \bitbox{8}{Count=$N$} & \bitbox{16}{Sequence Number} \\
         \begin{rightwordgroup}{Route 1}
             \bitbox{32}{Destination} \\
-            \bitbox{32}{Next Hop}
+            \bitbox{32}{Next Hop} \\
+            \bitbox{16}{Metric} 
+            \bitbox{16}{Reserved}
         \end{rightwordgroup} \\
         \begin{rightwordgroup}{Route 2}
             \bitbox{32}{Destination} \\
-            \bitbox{32}{Next Hop}
+            \bitbox{32}{Next Hop} \\
+            \bitbox{16}{Metric} 
+            \bitbox{16}{Reserved}
         \end{rightwordgroup} \\
         \wordbox[]{1}{$\vdots$} \\[1ex]
         \begin{rightwordgroup}{Route $N$}
             \bitbox{32}{Destination} \\
-            \bitbox{32}{Next Hop}
+            \bitbox{32}{Next Hop} \\
+            \bitbox{16}{Metric} 
+            \bitbox{16}{Reserved}
         \end{rightwordgroup}
     \end{bytefield}
     \caption{Destination Address Command Specification}
@@ -136,4 +169,58 @@ The failure notification is used to indicate some form of failure in the routing
     \caption{Failure Notification Statuses}
     \label{table:FailureNotificationStatuses}
 \end{table}
+
 \subsection{Packet Formats}\label{subsec:PDpacketFormats}
+The various packets utilized by this algorithm are composed of the commands and fields provided in Subsection \ref{subsec:PDAvailableFields}. The following listing indicated the composition of each packet using these fields.
+
+\subsubsection{Route Request (RReq)}\label{PDPFRReq}
+The route request packet, used by a node to request available routes from other nodes, can take one of two forms. The first, a request for all available routes, sets the cost field to zero and does not include any RDA Commands. This structure is captured in \ref{fig:RReqAll}. The second, a request for a specific set of routes, sets the cost field to the number of requested routes, and includes the requested routes as individual RDA Commands. This structure is captured in \ref{fig:RReqSpec}.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{32}{IGMP Header, Subtype=2} \\
+        \bitbox{32}{RDA Command, Count=0} \\
+    \end{bytefield}
+    \caption{Route Request Packet structure, all routes requested}
+    \label{fig:RReqAll}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{32}{IGMP Header, Subtype=2} \\
+        \wordbox{4}{RDA Command, Count=$N$} \\
+    \end{bytefield}
+    \caption{Route Request Packet structure, specific routes requested}
+    \label{fig:RReqSpec}
+\end{figure}
+
+\subsubsection{Route Reply (RRep)}\label{PDPFRRep}
+The Route Reply Packet (RRep) is used to provide new routes, either in response to a routing request or as triggered by a topology change. The RRep Packet is composed of the normal IGMP header, followed by infinity and metric type fields. The remainder of the packet consists of a Destination Address Command, as shown below. Recall that a destination address command may have up to 255 addresses enclosed, as limited by the number of bits in the count field. To support larger networks, the RRep Packet also implements an optional partitioning command inserted between the infinity/metric word and the first word of the DAC. This structure is captured below.
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{32}{IGMP Header, Subtype=1} \\
+        \bitbox{16}{Infinity Command} 
+        \bitbox{16}{Metric Type Command}\\
+        \bitbox{32}{Partitioning Command (optional)} \\
+        \wordbox{3}{Destination Address Command, Count=$N$} \\
+    \end{bytefield}
+    \caption{Route Reply Packet structure}
+    \label{fig:RRep}
+\end{figure}
+
+\subsubsection{Error Notification}\label{PDPFErr}
+The Error Notification Packet is used in a variety of situations to indicate some form of failure in the routing process. This can include a failure to transmit a packet over a known route, or the inability to find a route to a given node. The Error Notification Packet is composed of the normal IGMP header, followed by a Failure Notification Command. This packet is also used by a node to indicate that it itself is shutting down or being otherwise removed. It should be noted that such messages are routed over all links, even those with an RSSI value less than the threshold. The format of such a packet is fairly trivial, and is captured below
+\begin{figure}[H]
+    \centering
+    \begin{bytefield}[bitwidth=1.1em]{32}
+        \bitheader{0-31}\\
+        \bitbox{32}{IGMP Header, Subtype=3} \\
+        \wordbox{2}{Failure Notification Command} \\
+    \end{bytefield}
+    \caption{Error Notification Packet structure}
+    \label{fig:ErrNotification}
+\end{figure}
