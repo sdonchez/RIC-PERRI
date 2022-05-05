@@ -39,9 +39,12 @@ initial text=$ $, % sets the text that appears on the start arrow
  %   \bibliographystyle{IEEEtran} %TODO: Resolve mapping issues
     \bibliography{LaTeX_Assets/RoutingProtocolSources}
 
-    %shrink space between bibliography and biography
+    %shrink space between bibliography and acknowledgements
     \vskip 0pt plus -1fil
-
+    \input{content/acknowledgement.tex}
+    
+    %shrink space between acknowledgement and biography
+    \vskip 0pt plus -1fil
     \input{LaTeX_Assets/Biography.tex}
 
 \end{document}
