@@ -1,14 +1,41 @@
 %!TeX root = ../ECE8408_Project_Ad_Hoc_Routing.tex
 \section{Informal Proof}\label{sec:informalProof}
-\subsection{Functional Verification}\label{subsec:IPFunctionalVerification}
-\subsubsection{Link Failure}\label{subsubsec:IPFVLinkFailure}
-\subsubsection{Node Failure}\label{subsubsec:IPFVNodeFailure}
-\subsubsection{Partitioned Network}\label{subsubsec:IPFVPartitionedNetwork}
-\subsubsection{New Node Joins}\label{subsubsec:IPFVNewNodeJoins}
-\subsubsection{Node Going Down}\label{subsubsec:IPFVNodeGoingDown}
-\subsection{Message Complexity}\label{subsec:IPMessageComplexity}
-\subsubsection{Link Failure}\label{subsubsec:IPMCLinkFailure}
-\subsubsection{Node Failure}\label{subsubsec:IPMCNodeFailure}
-\subsubsection{Partitioned Network}\label{subsubsec:IPMCPartitionedNetwork}
-\subsubsection{New Node Joins}\label{subsubsec:IPMCNewNodeJoins}
-\subsubsection{Node Going Down}\label{subsubsec:IPMCNodeGoingDown}
+Although this routing protocol is (at this time) solely theoretical in nature, efforts have been undertaken to ensure its functionality and efficiency in a representative environment, with special attention to its handling of unusual circumstances. The various below subsections address these concerns, outlining a brief informal proof of the function of the protocol in each of these scenarios, as well as the message complexity thereof.
+% \subsection{Functional Verification}\label{subsec:IPFunctionalVerification}
+\subsection{Link Failure}\label{subsec:IPLinkFailure}
+\subsubsection{Functional Verification}
+The event of a link failure is handled differently depending on whether or not it has a direct adverse impact on network functionality. In the ideal case, the link does not result in a network partition, nor is it involved in any route that is used in the interval between the failure and the next regular routing update conducted by any nodes that had routes utilizing it. In this case, the link failure will cause routes to change during this next periodic routing process for each node, but does not require any other action by the network.
+
+A less ideal scenario is that the link is a primary route link for a given node, but a secondary link is available. In this case, the source node will immediately utilize its secondary route to transmit the data in question, and then broadcast a specific routing request for the destination to restore redundancy. Simultaneously, the node immediately prior to the failed link will send out an unsolicited routing reply setting the cost for the link to infinity, causing all neighbors that were using that link to update their routes, which would in turn cause a ripple through the network.
+
+The worst case scenario is that the failed link coincides another failed link such that both the primary and secondary route from the source to the destination are compromised. In this case, the source node must delay transmission while it broadcasts a specific routing request for the destination and updates its routing tables based on replies. Meanwhile, the node upstream of the link performs the same process as outlined above.
+\subsubsection{Message Complexity}
+In the first case above, the message complexity is zero ($\mathcal{O}(0)$), as no additional packets are exchanged outside of the normal update process. 
+
+In the second case, there is an additional (failed) data transmission, a specific routing request, up to N additional routing replies, where N is the number of nodes in the network.Additionally, the upstream node sends a single unsolicited routing reply, which, depending on the topology, may result in up to N additional routing requests and M*N additional replies (as each additional node updates its table and may seek new routes if the failed link causes it to lose a route). This results in an overall complexity of $\mathcal{O}(1 + 1 + N + 1 +M*N) = \mathcal{O}(M*N)$.
+
+In the third case, there are the two failed data transmissions, the specific routing request, and up to N additional routing replies, where N is the number of nodes in the network. Additionally, the upstream node sends a single unsolicited routing reply, which, depending on the topology, may result in up to N additional routing requests and M*N additional replies (as each additional node updates its table and may seek new routes if the failed link causes it to lose a route). This results in an overall complexity of $\mathcal{O}(2 + 1 + N + 1 +M*N) = \mathcal{O}(M*N)$.
+
+It should be noted that all of the above assume that this failure does not cause the network to become partitioned, as this scenario is considered separately below.
+
+\subsection{Node Failure}\label{subsec:IPNodeFailure}
+\subsubsection{Functional Verification}
+The handling of a node failures differs greatly in this algorithm depending on the nature of the failure, specifically whether the node in question sends out a notification prior to failing. Regardless of the nature of the failure, any detected failure will cause a failure notification to be sent to all nodes in the network, causing them to remove the node in its entirety from their routing tables.
+
+If the node is able to provide its own notification that it is either intentionally or unintentionally disconnecting, adjacent nodes will update their routing tables and send an unsolicited routing reply to reflect the change. As with the link failure above, this will cause a ripple of RRep and (potentially) RReq packets across the network, as routes traversing the node in question are updated. In the event of an unintentional failure, recipients will also provide a user-level alarm commensurate with the danger posed by such an isolated node.
+
+If the node is unable to provide notification, two scenarios exist wherein its failure is noticed. The ideal case is during the periodic update, as this means that no communications were adversely affected. In this instance, the node will be removed from the network as outlined above, with no cascaded updates needed as all remaining nodes already have the result of the removal. However, if the failure is detected outside of the periodic update (either because it is the recipient of a packet or because it is part of the route), then the failure will trigger the worst case link failure process outline in Subsection \ref{subsec:IPLinkFailure} above, with the addition of the broadcast node failure notification from the first remaining node to detect the failure.
+\subsubsection{Message Complexity}
+The worst case in this scenario is the third discussed above, as it accompanies a full link failure resolution. As that worst case was known to be $\mathcal{O}(2 + 1 + N + 1 +M*N) = \mathcal{O}(M*N)$, and this process adds a single node failure notification, the message complexity is $\mathcal{O}(2 + 1 + N + 1 +M*N+1) = \mathcal{O}(M*N)$.
+
+\subsection{Partitioned Network}\label{subsec:IPPartitionedNetwork}
+\subsubsection{Functional Verification}
+The RIC-PERRI algorithm treats a partitioned network as a series of node disconnections in each of the partitions. Although this is admittedly a less than ideal solution, it is the only practical one herein given that the lack of a central infrastructure makes differentiating a partition from a mass failure difficult. Furthermore, the risk of the latter in a critical response scenario is non-trivial, and such a failure is an adequately serious circumstance that the slightest change of misclassifying it as a partition is not worth the risk. Accordingly, the handling of a partition is identical to that outlined in Subsection \ref{subsec:IPNodeFailure}, above.
+\subsubsection{Message Complexity}
+As this case is handled identically to that of a node failure, the message complexity is identical to that of a node failure, with one modification. Since a partitioned network represents multiple perceived node failures, each of which may be discovered at separate times, the message complexity is $\mathcal{O}(M*N^2)$.
+
+\subsection{New Node Joins}\label{subsec:IPNewNodeJoins}
+\subsubsection{Functional Verification}
+A new node joining the network requires routing updates both on the new node itself and on all other nodes in the network. On the new node, the process follows the normal operation of the FSM through states $1 \rightarrow 3 \rightarrow 4 \rightarrow 7 \rightarrow 3 \cdots 7 \rightarrow 6$. Meanwhile, it also advertises itself (as part of the ``Start'' state) in an unsolicited RRep, causing other nodes to calculate routes to the new node into their tables.
+\subsubsection{Message Complexity}
+The overall message complexity of handling a new node joining the network is the sum of these two discrete processes. The new node's own update process involves a single RReq followed by up to N RReps, a process which is completed M times until the table has stabilized. This yields $\mathcal{O}(M(1+N)) = \mathcal{O}(M*N)$. Meanwhile, the new node's advertisement consists of a single RRep (the unsolicited one sent by the new node itself) and up to N-1 additional RReps (as each of the other nodes updates its tables), yielding $\mathcal{O}(N)$. As a result, the overall complexity is $\mathcal{O}(M*N) + \mathcal{O}(N) = \mathcal{O}(M*N)$.
